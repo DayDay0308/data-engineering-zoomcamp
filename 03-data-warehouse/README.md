@@ -1,85 +1,167 @@
-# Data Warehouse and BigQuery
+# Module 3: Data Warehouse with BigQuery
 
-- [Slides](https://docs.google.com/presentation/d/1a3ZoBAXFk8-EhUsd7rAZd-5p_HpltkzSeujjRGB2TAI/edit?usp=sharing)  
-- [Big Query basic SQL](big_query.sql)
+## Overview
 
-# Videos
+Now that data is in our GCS data lake, we move it into **BigQuery** — GCP's fully managed,
+serverless data warehouse — and learn how to make queries fast and cheap at scale.
 
-## Data Warehouse
+---
 
-- Data Warehouse and BigQuery
+## What I Learned
 
-[![](https://markdown-videos-api.jorgenkh.no/youtube/jrHljAoD6nM)](https://youtu.be/jrHljAoD6nM&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=34)
+### What is a Data Warehouse?
 
-## :movie_camera: Partitioning and clustering
+A data warehouse is a system optimized for **analytical queries** (OLAP), not
+transactional operations (OLTP like a web app database).
 
-- Partitioning vs Clustering
+| | OLTP (PostgreSQL) | OLAP (BigQuery) |
+|--|-------------------|----------------|
+| **Use case** | App operations | Analytics / reporting |
+| **Queries** | Many small reads/writes | Few large scans |
+| **Scale** | GBs | TBs–PBs |
+| **Speed** | Fast row lookups | Fast column scans |
+| **Storage** | Row-oriented | Column-oriented |
+| **Cost model** | Fixed server cost | Pay-per-query |
 
-[![](https://markdown-videos-api.jorgenkh.no/youtube/-CqXf7vhhDs)](https://youtu.be/-CqXf7vhhDs?si=p1sYQCAs8dAa7jIm&t=193&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=35)
+### BigQuery Internals
 
-## :movie_camera: Best practices
+BigQuery is **columnar** — data is stored by column, not by row.
 
-[![](https://markdown-videos-api.jorgenkh.no/youtube/k81mLJVX08w)](https://youtu.be/k81mLJVX08w&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=36)
+```
+Row storage (Postgres):
+[row1: col1, col2, col3] [row2: col1, col2, col3] ...
 
-## :movie_camera: Internals of BigQuery
+Column storage (BigQuery):
+[col1: val1, val2, val3...] [col2: val1, val2, val3...] ...
+```
 
-[![](https://markdown-videos-api.jorgenkh.no/youtube/eduHi1inM4s)](https://youtu.be/eduHi1inM4s&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=37)
+When you run `SELECT total_amount FROM trips`, BigQuery only reads the `total_amount` column
+— it skips all other columns entirely. On a table with 50 columns and 100M rows, this is
+a massive performance win.
 
-## Advanced topics
+### Partitioning
 
-### :movie_camera: Machine Learning in Big Query
+Partitioning divides a table into segments by a column value. BigQuery only reads relevant
+partitions when you filter on the partition column.
 
-[![](https://markdown-videos-api.jorgenkh.no/youtube/B-WtpB0PuG4)](https://youtu.be/B-WtpB0PuG4&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=34)
+```sql
+-- Create a partitioned table
+CREATE OR REPLACE TABLE ny_taxi.yellow_trips_partitioned
+PARTITION BY DATE(tpep_pickup_datetime)
+AS SELECT * FROM ny_taxi.yellow_trips_external;
+```
 
-* [SQL for ML in BigQuery](big_query_ml.sql)
+**Impact example:**
+```
+Unpartitioned table scan: 1.6 GB processed
+Partitioned (filtered by date): 106 MB processed
+→ 15x less data read = 15x cheaper query
+```
 
-**Important links**
+### Clustering
 
-- [BigQuery ML Tutorials](https://cloud.google.com/bigquery-ml/docs/tutorials)
-- [BigQuery ML Reference Parameter](https://cloud.google.com/bigquery-ml/docs/analytics-reference-patterns)
-- [Hyper Parameter tuning](https://cloud.google.com/bigquery-ml/docs/reference/standard-sql/bigqueryml-syntax-create-glm)
-- [Feature preprocessing](https://cloud.google.com/bigquery-ml/docs/reference/standard-sql/bigqueryml-syntax-preprocess-overview)
+Clustering sorts data within each partition by one or more columns. Useful when you 
+frequently filter or group by those columns.
 
-### :movie_camera: Deploying Machine Learning model from BigQuery
+```sql
+CREATE OR REPLACE TABLE ny_taxi.yellow_trips_partitioned_clustered
+PARTITION BY DATE(tpep_pickup_datetime)
+CLUSTER BY VendorID
+AS SELECT * FROM ny_taxi.yellow_trips_external;
+```
 
-[![](https://markdown-videos-api.jorgenkh.no/youtube/BjARzEWaznU)](https://youtu.be/BjARzEWaznU&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=39)
+**When to use clustering:**
+- Columns used frequently in `WHERE`, `GROUP BY`, `ORDER BY`
+- High cardinality columns (many distinct values)
+- After partitioning — clustering applies within each partition
 
-- [Steps to extract and deploy model with docker](extract_model.md)  
+### External Tables
 
+BigQuery can query Parquet/CSV files directly from GCS **without** loading them first.
+These are called **external tables**:
 
+```sql
+CREATE OR REPLACE EXTERNAL TABLE ny_taxi.yellow_trips_external
+OPTIONS (
+  format = 'PARQUET',
+  uris = ['gs://your-bucket/ny_taxi/yellow/*.parquet']
+);
+```
 
-# Homework
+Trade-off: external tables are slower and more expensive per query than native tables,
+but great for exploring raw data before committing to a schema.
 
-* [2026 Homework](../cohorts/2026/03-data-warehouse/homework.md)
+---
 
+## Tools Used
 
-# Community notes
+| Tool | Purpose |
+|------|---------|
+| BigQuery | Data warehouse — stores and queries structured data |
+| GCS | Source of Parquet files for BigQuery |
+| BigQuery Console | Web UI for running queries |
+| `bq` CLI | Command-line tool for BigQuery operations |
 
-<details>
-<summary>Did you take notes? You can share them here</summary>
+---
 
-* [Notes by Alvaro Navas](https://github.com/ziritrion/dataeng-zoomcamp/blob/main/notes/3_data_warehouse.md)
-* [Isaac Kargar's blog post](https://kargarisaac.github.io/blog/data%20engineering/jupyter/2022/01/30/data-engineering-w3.html)
-* [Marcos Torregrosa's blog post](https://www.n4gash.com/2023/data-engineering-zoomcamp-semana-3/) 
-* [Notes by Victor Padilha](https://github.com/padilha/de-zoomcamp/tree/master/week3)
-* [Notes from Xia He-Bleinagel](https://xiahe-bleinagel.com/2023/02/week-3-data-engineering-zoomcamp-notes-data-warehouse-and-bigquery/)
-* [Bigger picture summary on Data Lakes, Data Warehouses, and tooling](https://medium.com/@verazabeida/zoomcamp-week-4-b8bde661bf98), by Vera
-* [Notes by froukje](https://github.com/froukje/de-zoomcamp/blob/main/week_3_data_warehouse/notes/notes_week_03.md)
-* [Notes by Alain Boisvert](https://github.com/boisalai/de-zoomcamp-2023/blob/main/week3.md)
-* [Notes from Vincenzo Galante](https://binchentso.notion.site/Data-Talks-Club-Data-Engineering-Zoomcamp-8699af8e7ff94ec49e6f9bdec8eb69fd)
-* [2024 videos transcript week3](https://drive.google.com/drive/folders/1quIiwWO-tJCruqvtlqe_Olw8nvYSmmDJ?usp=sharing) by Maria Fisher 
-* [Notes by Linda](https://github.com/inner-outer-space/de-zoomcamp-2024/blob/main/3a-data-warehouse/readme.md)
-* [Jonah Oliver's blog post](https://www.jonahboliver.com/blog/de-zc-w3)
-* [2024 - steps to send data from Mage to GCS + creating external table](https://drive.google.com/file/d/1GIi6xnS4070a8MUlIg-ozITt485_-ePB/view?usp=drive_link) by Maria Fisher
-* [2024 - mage dataloader script to load the parquet files from a remote URL and push it to Google bucket as parquet file](https://github.com/amohan601/dataengineering-zoomcamp2024/blob/main/week_3_data_warehouse/mage_scripts/green_taxi_2022_v2.py) by Anju Mohan
-* [2024 - steps to send data from Mage to GCS + creating external table](https://drive.google.com/file/d/1GIi6xnS4070a8MUlIg-ozITt485_-ePB/view?usp=drive_link) by Maria Fisher 
-* [Notes by HongWei](https://github.com/hwchua0209/data-engineering-zoomcamp-submission/blob/main/03-data-warehouse/README.md)
-* [2025 Notes by Manuel Guerra](https://github.com/ManuelGuerra1987/data-engineering-zoomcamp-notes/blob/main/3_Data-Warehouse/README.md)
-* [Notes from Horeb SEIDOU](https://spotted-hardhat-eea.notion.site/Week-3-Data-Warehouse-and-BigQuery-17c29780dc4a80c8a226f372543ae388)
-* [2025 - Notes by Gabi Fonseca](https://github.com/fonsecagabriella/data_engineering/blob/main/03_data_warehouse/00_notes.md)
-* [2025 Gitbook Notes Tinker0425](https://data-engineering-zoomcamp-2025-t.gitbook.io/tinker0425/module-3/introduction-to-module-3)
-* [2025 Notes from Daniel Lachner](https://drive.google.com/file/d/105zjtLFi0sRqqFFgdMSCTzfcLPx2rfv4/view?usp=sharing)
-* [2026 Notes from Catherine Frost](https://docs.google.com/document/d/1j3jeNnBI2fw1nq7JwEauPx2G8FybDfTqmMk7eRu0vSo/edit?tab=t.0)
-* Add your notes here (above this line)
+## Folder Structure
 
-</details>
+```
+03-data-warehouse/
+├── README.md
+├── queries/
+│   ├── 01_create_external_table.sql    # Create external table from GCS
+│   ├── 02_create_native_table.sql      # Load GCS → native BigQuery table
+│   ├── 03_partitioning.sql             # Create partitioned tables
+│   ├── 04_clustering.sql               # Create clustered tables
+│   ├── 05_performance_comparison.sql   # Compare query costs
+│   └── 06_analytics_queries.sql        # Business queries on taxi data
+└── homework/
+    └── homework_answers.md
+```
+
+---
+
+## Key Commands
+
+```bash
+# List datasets in your project
+bq ls
+
+# List tables in a dataset
+bq ls ny_taxi_warehouse
+
+# Describe a table schema
+bq show ny_taxi_warehouse.yellow_taxi_trips
+
+# Run a query from CLI
+bq query --use_legacy_sql=false \
+  "SELECT COUNT(*) FROM \`project.dataset.table\`"
+
+# Load data from GCS
+bq load \
+  --source_format=PARQUET \
+  ny_taxi_warehouse.yellow_taxi_trips \
+  gs://bucket/path/*.parquet
+```
+
+---
+
+## Cost Optimization Summary
+
+| Strategy | Savings |
+|----------|---------|
+| Partition by date | Only scan relevant date ranges |
+| Cluster by frequent filter columns | Reduce bytes within partitions |
+| Use native tables over external | Faster + cheaper per query |
+| `SELECT only needed columns` | Avoid `SELECT *` |
+| Preview with `LIMIT` before full scan | Estimate cost before running |
+| Cache results | BigQuery caches identical queries for 24h (free) |
+
+---
+
+## Resources
+
+- [BigQuery Documentation](https://cloud.google.com/bigquery/docs)
+- [BigQuery Pricing](https://cloud.google.com/bigquery/pricing)
+- [Partitioned Tables Guide](https://cloud.google.com/bigquery/docs/partitioned-tables)

@@ -1,19 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+venv/
+.venv/
 
-.DS_Store
-.idea
-*.tfstate
-*.tfstate.*
-**.terraform
-**.terraform.lock.*
-**google_credentials.json
-**logs/
-**.env
-**__pycache__/
-.history
-**/ny_taxi_postgres_data/*
-serving_dir
-.ipynb_checkpoints/
-!week_6_stream_processing/avro_example/data/rides.csv
-*.parquet
+# Data files (too large for git)
 *.csv
-*.duckdb
+*.csv.gz
+*.parquet
+*.json.gz
+
+# Docker volumes
+ny_taxi_postgres_data/
+pgadmin_data/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# GCP credentials (NEVER commit these)
+*.json
+service-account*.json
+credentials*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

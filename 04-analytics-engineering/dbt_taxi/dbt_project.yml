@@ -1,0 +1,22 @@
+name: 'ny_taxi_dbt'
+version: '1.0.0'
+config-version: 2
+
+profile: 'ny_taxi_dbt'
+
+model-paths: ["models"]
+seed-paths:  ["seeds"]
+macro-paths: ["macros"]
+test-paths:  ["tests"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  ny_taxi_dbt:
+    staging:
+      +materialized: view        # Staging models = views (cheap, always fresh)
+      +schema: staging
+    core:
+      +materialized: table       # Core models = tables (faster queries)
+      +schema: core

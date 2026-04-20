@@ -1,0 +1,59 @@
+version: 2
+
+sources:
+  - name: staging
+    database: "{{ env_var('DBT_PROJECT_ID') }}"
+    schema: ny_taxi_warehouse
+
+    tables:
+      - name: yellow_trips
+        description: "Raw NYC Yellow Taxi trip data loaded from GCS via Mage pipeline"
+      - name: green_trips
+        description: "Raw NYC Green Taxi trip data"
+
+models:
+  - name: stg_yellow_taxi
+    description: >
+      Cleaned and standardized Yellow Taxi trips.
+      Filters out rows with 0 passengers or 0 trip distance.
+      Renames columns to snake_case with consistent naming.
+    columns:
+      - name: trip_id
+        description: "Unique trip identifier (hash of vendor + pickup time)"
+        tests:
+          - unique
+          - not_null
+
+      - name: vendor_id
+        description: "Taxi vendor: 1=CMT, 2=VeriFone"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2]
+
+      - name: pickup_datetime
+        tests:
+          - not_null
+
+      - name: dropoff_datetime
+        tests:
+          - not_null
+
+      - name: passenger_count
+        tests:
+          - not_null
+
+      - name: trip_distance
+        tests:
+          - not_null
+
+      - name: payment_type_description
+        description: "Human-readable payment type (Credit Card, Cash, etc.)"
+        tests:
+          - accepted_values:
+              values: ['Credit Card', 'Cash', 'No Charge', 'Dispute', 'Unknown', 'Voided Trip']
+
+  - name: stg_green_taxi
+    description: >
+      Cleaned and standardized Green Taxi trips.
+      Same transformations as stg_yellow_taxi but from Green Taxi source data.

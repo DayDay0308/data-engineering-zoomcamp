@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  magic:
+    image: mageai/mageai:latest
+    command: mage start ny_taxi_pipeline
+    environment:
+      # GCP credentials — update this path to your service account key
+      GOOGLE_SERVICE_ACC_KEY_FILEPATH: /home/src/service-account.json
+      # Project name
+      PROJECT_NAME: ny_taxi_pipeline
+    volumes:
+      - .:/home/src/
+      # Optional: mount your GCP service account key
+      # - /path/to/your/service-account.json:/home/src/service-account.json
+    ports:
+      - "6789:6789"
+    restart: on-failure
+    networks:
+      - mage-network
+
+networks:
+  mage-network:
+    driver: bridge

@@ -1,0 +1,7 @@
+# terraform.tfvars — Replace these values with your own GCP project details
+# IMPORTANT: Add terraform.tfvars to your .gitignore if it contains sensitive values
+
+project         = "your-gcp-project-id"      # e.g. "my-de-zoomcamp-123456"
+region          = "us-central1"
+bucket_suffix   = "dezoomcamp"               # Makes bucket name globally unique
+bq_dataset_name = "ny_taxi_warehouse"
